@@ -36,6 +36,7 @@ import {
   type SessionBindingRecord,
 } from "../infra/outbound/session-binding-service.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
+import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
 import {
   isSubagentSessionKey,
   normalizeAgentId,
@@ -517,6 +518,33 @@ export async function spawnAcpDirect(
   const sessionKey = `agent:${targetAgentId}:acp:${crypto.randomUUID()}`;
   const runtimeMode = resolveAcpSessionMode(spawnMode);
 
+  // Emit subagent_spawning hook for ACP sessions
+  const hookRunner = getGlobalHookRunner();
+  if (hookRunner?.hasHooks("subagent_spawning")) {
+    const spawnCtx = {
+      childSessionKey: sessionKey,
+      requesterSessionKey: requesterInternalKey,
+    };
+    hookRunner
+      .runSubagentSpawning(
+        {
+          childSessionKey: sessionKey,
+          agentId: targetAgentId,
+          label: params.label || undefined,
+          mode: spawnMode,
+          threadRequested: requestThreadBinding,
+          requester: {
+            channel: ctx.agentChannel,
+            accountId: ctx.agentAccountId,
+            to: ctx.agentTo,
+            threadId: ctx.agentThreadId,
+          },
+        },
+        spawnCtx,
+      )
+      .catch(() => {});
+  }
+
   let preparedBinding: PreparedAcpThreadBinding | null = null;
   if (requestThreadBinding) {
     const prepared = prepareAcpThreadBinding({
@@ -750,6 +778,33 @@ export async function spawnAcpDirect(
       ...(streamLogPath ? { streamLogPath } : {}),
       note: spawnMode === "session" ? ACP_SPAWN_SESSION_ACCEPTED_NOTE : ACP_SPAWN_ACCEPTED_NOTE,
     };
+  }
+
+  // Emit subagent_spawned hook for ACP sessions
+  if (hookRunner?.hasHooks("subagent_spawned")) {
+    hookRunner
+      .runSubagentSpawned(
+        {
+          childSessionKey: sessionKey,
+          runId: childRunId,
+          agentId: targetAgentId,
+          label: params.label || undefined,
+          mode: spawnMode,
+          threadRequested: requestThreadBinding,
+          requester: {
+            channel: ctx.agentChannel,
+            accountId: ctx.agentAccountId,
+            to: ctx.agentTo,
+            threadId: ctx.agentThreadId,
+          },
+        },
+        {
+          runId: childRunId,
+          childSessionKey: sessionKey,
+          requesterSessionKey: requesterInternalKey,
+        },
+      )
+      .catch(() => {});
   }
 
   return {
