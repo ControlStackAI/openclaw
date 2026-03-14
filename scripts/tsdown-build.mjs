@@ -49,9 +49,14 @@ function findFatalUnresolvedImport(lines) {
     }
 
     const normalizedLine = line.replace(ANSI_ESCAPE_RE, "");
-    if (!normalizedLine.includes("extensions/")) {
-      return normalizedLine;
+    // Allow known optional peer deps that are safely caught at runtime
+    if (normalizedLine.includes("extensions/")) {
+      continue;
     }
+    if (normalizedLine.includes("baileys") && /['"]jimp['"]/.test(normalizedLine)) {
+      continue;
+    }
+    return normalizedLine;
   }
 
   return null;
