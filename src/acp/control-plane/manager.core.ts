@@ -1,5 +1,6 @@
 import type { OpenClawConfig } from "../../config/config.js";
 import { logVerbose } from "../../globals.js";
+import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
 import { normalizeAgentId } from "../../routing/session-key.js";
 import { isAcpSessionKey } from "../../sessions/session-key-utils.js";
 import {
@@ -733,6 +734,22 @@ export class AcpSessionManager {
             logVerbose(`acp-manager: ACP oneshot close failed for ${sessionKey}: ${String(error)}`);
           } finally {
             this.clearCachedRuntimeState(sessionKey);
+            // Emit subagent_ended for ACP oneshot completion
+            const hookRunner = getGlobalHookRunner();
+            if (hookRunner?.hasHooks("subagent_ended")) {
+              hookRunner
+                .runSubagentEnded(
+                  {
+                    targetSessionKey: sessionKey,
+                    targetKind: "acp",
+                    reason: "subagent-complete",
+                    outcome: streamError ? "error" : "ok",
+                    error: streamError?.message,
+                  },
+                  { childSessionKey: sessionKey },
+                )
+                .catch(() => {});
+            }
           }
         }
       }
