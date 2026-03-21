@@ -11,6 +11,8 @@ REMOTE_PREFIX="${REMOTE_HOME}/.npm-global"
 echo "=== Building OpenClaw ==="
 cd "$(dirname "$0")/.."
 
+
+
 # 1. Bundle JS (tsdown)
 pnpm canvas:a2ui:bundle
 node scripts/tsdown-build.mjs
@@ -24,6 +26,22 @@ node --import tsx scripts/copy-export-html-templates.ts
 node scripts/copy-bundled-plugin-metadata.mjs
 node scripts/stage-bundled-plugin-runtime.mjs
 node scripts/stage-bundled-plugin-runtime-deps.mjs
+
+# Remove extension dirs that reference entry files not actually built
+echo "Pruning unbuildable extension metadata..."
+for ext_dir in dist/extensions/*/; do
+  pkg="$ext_dir/package.json"
+  [ -f "$pkg" ] || continue
+  # Check if any declared entry file exists
+  has_entry=false
+  for js in "$ext_dir"*.js; do
+    [ -f "$js" ] && has_entry=true && break
+  done
+  if [ "$has_entry" = false ]; then
+    echo "  removing incomplete extension: $(basename "$ext_dir")"
+    rm -rf "$ext_dir"
+  fi
+done
 node --import tsx scripts/write-build-info.ts
 node --import tsx scripts/write-cli-startup-metadata.ts
 node --import tsx scripts/write-cli-compat.ts
