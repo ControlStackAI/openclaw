@@ -21,6 +21,9 @@ node --import tsx scripts/write-plugin-sdk-entry-dts.ts
 node --import tsx scripts/canvas-a2ui-copy.ts
 node --import tsx scripts/copy-hook-metadata.ts
 node --import tsx scripts/copy-export-html-templates.ts
+node scripts/copy-bundled-plugin-metadata.mjs
+node scripts/stage-bundled-plugin-runtime.mjs
+node scripts/stage-bundled-plugin-runtime-deps.mjs
 node --import tsx scripts/write-build-info.ts
 node --import tsx scripts/write-cli-startup-metadata.ts
 node --import tsx scripts/write-cli-compat.ts
